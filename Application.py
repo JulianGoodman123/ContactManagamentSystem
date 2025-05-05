@@ -1,9 +1,5 @@
 # Imports list for application
 import mysql.connector
-import tkinter as tk
-
-from tkinter import ttk, messagebox
-from tkinter import *
 
 # Connect to MySQL
 db = mysql.connector.connect(
@@ -30,3 +26,4 @@ mycursor.execute("""
         address TEXT
     )
 """)
+
