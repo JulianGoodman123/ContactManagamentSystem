@@ -1,23 +1,22 @@
-# Imports list for application
 import mysql.connector
 
-# Connect to MySQL
+# Connect to the MySQL server
 db = mysql.connector.connect(
     host="localhost",
     user="root",
-    passwd="root", 
-    database="contactDB",   
+    passwd="root"
 )
 
+# Create a cursor object to communicate with the database 
 mycursor = db.cursor()
 
-# Create the database if it doesn't exist
+# If the database doesn't exist, create it
 mycursor.execute("CREATE DATABASE IF NOT EXISTS contactDB")
 
-# Select the database
+# Tell MySQL to use the contactDB database
 db.database = "contactDB"
 
-# Create a table with the required columns (again only if the database doesn't exist)
+# If the table doesn't exist, create it
 mycursor.execute("""
     CREATE TABLE IF NOT EXISTS contacts (
         full_name VARCHAR(255) PRIMARY KEY,
@@ -26,4 +25,8 @@ mycursor.execute("""
         address TEXT
     )
 """)
+
+# Save everything we did and close the connection
+db.commit()
+db.close()
 
