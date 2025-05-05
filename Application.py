@@ -124,5 +124,8 @@ clear_input.grid(row=2, column=3)
 # Window dimensions
 app.geometry("650x450")
 
+# Populate Table on Load
+populate_list()
+
 # Start the GUI app
 app.mainloop()
