@@ -1,6 +1,7 @@
 # ===== Imports ===== #
 import mysql.connector
 from tkinter import *
+from tkinter import ttk
 
 
 # ===== Database Setup ===== #
@@ -58,51 +59,69 @@ app.title("Julian's Contact Management App")
 
 # ----- Contact Name ----- #
 contact_name = StringVar()
-contact_label = Label(app, text="Contact Full Name: ", font=('bold', 14), pady=20, padx=10)
+contact_label = Label(app, text="Full Name: ", font=('bold', 14), pady=20, padx=10)
 contact_label.grid(row=0, column=0, sticky=W)
 contact_entry = Entry(app, textvariable=contact_name)
 contact_entry.grid(row=0, column=1)
 
 # ----- Contact Age ----- #
 contact_age = StringVar()
-contact_label = Label(app, text="Contact Age: ", font=('bold', 14), pady=20, padx=10)
+contact_label = Label(app, text="Age: ", font=('bold', 14), pady=20, padx=10)
 contact_label.grid(row=0, column=2, sticky=W)
 contact_entry = Entry(app, textvariable=contact_age)
 contact_entry.grid(row=0, column=3)
 
 # ----- Contact Number ----- #
 contact_number = StringVar()
-contact_label = Label(app, text="Contact Number: ", font=('bold', 14), pady=20, padx=10)
+contact_label = Label(app, text="Number: ", font=('bold', 14), pady=20, padx=10)
 contact_label.grid(row=1, column=0, sticky=W)
 contact_entry = Entry(app, textvariable=contact_number)
 contact_entry.grid(row=1, column=1)
 
 # ----- Contact Address ----- #
 contact_address = StringVar()
-contact_label = Label(app, text="Contact Address: ", font=('bold', 14), pady=20, padx=10)
+contact_label = Label(app, text="Address: ", font=('bold', 14), pady=20, padx=10)
 contact_label.grid(row=1, column=2, sticky=W)
 contact_entry = Entry(app, textvariable=contact_address)
 contact_entry.grid(row=1, column=3)
 
 
-# ===== Contact Info List ===== #
-contacts_info = Listbox(app, height=15, width=80)
-contacts_info.grid(row=3, column=0, columnspan=3, rowspan=6, pady=2, padx=20)
+# ===== Contact Info Treeview with Headers ===== #
+# Treeview (table) to display contact info
+columns = ("Full Name", "Age", "Contact Number", "Address")
 
-# Scrollbar for contact list
-scrollbar = Scrollbar(app, orient=VERTICAL)
-scrollbar.grid(row=3, column=3, rowspan=6, sticky='ns')
-contacts_info.configure(yscrollcommand=scrollbar.set)
-scrollbar.configure(command=contacts_info.yview)
+tree = ttk.Treeview(app, columns=columns, show="headings", height=10)
+tree.grid(row=3, column=0, columnspan=4, rowspan=6, pady=20, padx=20)
+
+# Column headers
+tree.heading("Full Name", text="Full Name", anchor=W)
+tree.heading("Age", text="Age", anchor=W)
+tree.heading("Contact Number", text="Contact Number", anchor=W)
+tree.heading("Address", text="Address", anchor=W)
+
+# Set column widths (optional, you can adjust as needed)
+tree.column("Full Name", width=180)
+tree.column("Age", width=60)
+tree.column("Contact Number", width=180)
+tree.column("Address", width=250)
+
+
+# Scrollbar for Treeview
+scrollbar = Scrollbar(app, orient=VERTICAL, command=tree.yview)
+scrollbar.grid(row=3, column=4, rowspan=6, sticky='ns')
+tree.configure(yscrollcommand=scrollbar.set)
 
 
 # ===== Functionality ===== #
 
-def populate_list():
-    contacts_info.delete(0, END)
+def populate_treeview():
+    # Clear current entries in treeview
+    for row in tree.get_children():
+        tree.delete(row)
+
     rows = run_query("SELECT * FROM contacts")
     for row in rows:
-        contacts_info.insert(END, row)
+        tree.insert("", "end", values=row)
 
 def add_item():
     run_query(
@@ -110,32 +129,56 @@ def add_item():
         (contact_name.get(), contact_age.get(), contact_number.get(), contact_address.get()),
         fetch=False
     )
-    populate_list()
+    populate_treeview()
+    clear_text()
 
 def delete_item():
-    selected = contacts_info.get(ACTIVE)
-    if selected:
-        run_query("DELETE FROM contacts WHERE full_name = %s", (selected[0],), fetch=False)
-        populate_list()
+    selected_item = tree.selection()
+    if selected_item:
+        selected_contact = tree.item(selected_item)["values"][0]
+        run_query("DELETE FROM contacts WHERE full_name = %s", (selected_contact,), fetch=False)
+        populate_treeview()
+        clear_text()
 
 def update_item():
-    selected = contacts_info.get(ACTIVE)
-    if selected:
-        run_query("""
+    selected_item = tree.selection()
+    if selected_item:
+        selected_contact = tree.item(selected_item)["values"][0]
+        run_query(""" 
             UPDATE contacts SET age = %s, contact_number = %s, address = %s WHERE full_name = %s
         """, (
             contact_age.get(),
             contact_number.get(),
             contact_address.get(),
-            selected[0]
+            selected_contact
         ), fetch=False)
-        populate_list()
+        populate_treeview()
+
 
 def clear_text():
     contact_name.set("")
     contact_age.set("")
     contact_number.set("")
     contact_address.set("")
+
+# ===== Double Click Event Handler ===== #
+
+def on_item_double_click(event):
+    # Get selected item from treeview
+    selected_item = tree.selection()
+    if selected_item:
+        # Get values of the selected row
+        values = tree.item(selected_item)["values"]
+        
+        # Populate the input fields with the selected row data
+        contact_name.set(values[0])  # Full Name
+        contact_age.set(values[1])  # Age
+        contact_number.set(values[2])  # Contact Number
+        contact_address.set(values[3])  # Address
+
+
+# Bind double-click event to the Treeview
+tree.bind("<Double-1>", on_item_double_click)
 
 
 # ===== Buttons ===== #
@@ -156,15 +199,16 @@ clear_input.grid(row=2, column=3)
 # ===== App Setup and Start ===== #
 
 # Window dimensions (adjusted for more space)
-app.geometry("730x475")
+app.geometry("800x475")
 
-# Initialize DB and populate list
+# Initialize DB and populate treeview
 init_db()
-populate_list()
+populate_treeview()
 
 # Start the GUI app
 app.mainloop()
 
 # 1. Add exception handling
-# 2. Write Unit tests
-# 3. Write ReadMe
+# 2. Write and test Unit tests
+# 3. Write ReadMe without executable
+# 4. If not doing executable, remove files we don't need
