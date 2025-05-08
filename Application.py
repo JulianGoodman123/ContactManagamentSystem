@@ -2,120 +2,143 @@
 import mysql.connector
 from tkinter import *
 from tkinter import ttk
+from tkinter import messagebox
+import re
 
 
 # ===== Database Setup ===== #
 
-# Connect to MySQL server and setup DB/table if not already there
 def init_db():
-    db = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        passwd="root"
-    )
-    cur = db.cursor()
-    cur.execute("CREATE DATABASE IF NOT EXISTS contactDB")
-    db.database = "contactDB"
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS contacts (
-            full_name VARCHAR(255) PRIMARY KEY,
-            age INT,
-            contact_number VARCHAR(255),
-            address TEXT
+    try:
+        db = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            passwd="root"
         )
-    """)
-    db.commit()
-    db.close()
+        cur = db.cursor()
+        cur.execute("CREATE DATABASE IF NOT EXISTS contactDB")
+        db.database = "contactDB"
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS contacts (
+                first_name VARCHAR(255),
+                last_name VARCHAR(255),
+                age INT,
+                phone VARCHAR(255) UNIQUE,
+                address TEXT,
+                PRIMARY KEY (phone)
+            )
+        """)
+        db.commit()
+        db.close()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Database Error", f"Error initializing database: {err}")
+
 
 def run_query(query, params=(), fetch=True):
-    conn = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        passwd="root",
-        database="contactDB"
-    )
-    cur = conn.cursor()
-    cur.execute(query, params)
-    
-    result = cur.fetchall() if fetch else None
-    if not fetch:
-        conn.commit()
-    
-    cur.close()
-    conn.close()
-    return result
+    """Executes a query with parameters and fetches results if required."""
+    try:
+        conn = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            passwd="root",
+            database="contactDB"
+        )
+        cur = conn.cursor()
+        cur.execute(query, params)
+        
+        result = cur.fetchall() if fetch else None
+        if not fetch:
+            conn.commit()
+        
+        cur.close()
+        conn.close()
+        return result
+    except mysql.connector.Error as err:
+        messagebox.showerror("Database Error", f"Error executing query: {err}")
+        return []
 
 
 # ===== GUI Setup ===== #
 
 # Create app window
 app = Tk()
-
-# Window title
 app.title("Julian's Contact Management App")
-
 
 # ===== Input Fields ===== #
 
-# ----- Contact Name ----- #
-contact_name = StringVar()
-contact_label = Label(app, text="Full Name: ", font=('bold', 14), pady=20, padx=10)
-contact_label.grid(row=0, column=0, sticky=W)
-contact_entry = Entry(app, textvariable=contact_name)
-contact_entry.grid(row=0, column=1)
+# ----- Contact First Name ----- #
+first_name = StringVar()
+Label(app, text="First Name: ", font=('bold', 14), pady=5, padx=10).grid(row=0, column=0, sticky=W)
+first_name_entry = Entry(app, textvariable=first_name)
+first_name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+# ----- Contact Last Name ----- #
+last_name = StringVar()
+Label(app, text="Last Name: ", font=('bold', 14), pady=5, padx=10).grid(row=0, column=2, sticky=W)
+last_name_entry = Entry(app, textvariable=last_name)
+last_name_entry.grid(row=0, column=3, padx=5, pady=5)
 
 # ----- Contact Age ----- #
-contact_age = StringVar()
-contact_label = Label(app, text="Age: ", font=('bold', 14), pady=20, padx=10)
-contact_label.grid(row=0, column=2, sticky=W)
-contact_entry = Entry(app, textvariable=contact_age)
-contact_entry.grid(row=0, column=3)
+age = StringVar()
+Label(app, text="Age: ", font=('bold', 14), pady=5, padx=10).grid(row=1, column=0, sticky=W)
+age_entry = Entry(app, textvariable=age)
+age_entry.grid(row=1, column=1, padx=5, pady=5)
 
-# ----- Contact Number ----- #
-contact_number = StringVar()
-contact_label = Label(app, text="Number: ", font=('bold', 14), pady=20, padx=10)
-contact_label.grid(row=1, column=0, sticky=W)
-contact_entry = Entry(app, textvariable=contact_number)
-contact_entry.grid(row=1, column=1)
+# ----- Contact Phone ----- #
+phone = StringVar()
+Label(app, text="Phone: ", font=('bold', 14), pady=5, padx=10).grid(row=1, column=2, sticky=W)
+phone_entry = Entry(app, textvariable=phone)
+phone_entry.grid(row=1, column=3, padx=5, pady=5)
 
 # ----- Contact Address ----- #
-contact_address = StringVar()
-contact_label = Label(app, text="Address: ", font=('bold', 14), pady=20, padx=10)
-contact_label.grid(row=1, column=2, sticky=W)
-contact_entry = Entry(app, textvariable=contact_address)
-contact_entry.grid(row=1, column=3)
+address = StringVar()
+Label(app, text="Address: ", font=('bold', 14), pady=5, padx=10).grid(row=2, column=0, sticky=W)
+address_entry = Entry(app, textvariable=address)
+address_entry.grid(row=2, column=1, columnspan=3, padx=5, pady=5)
+
+
+# ===== Search Section ===== #
+
+search_var = StringVar()
+Label(app, text="Search by First Name: ", font=('bold', 14), pady=5, padx=10).grid(row=3, column=0, sticky=W)
+search_entry = Entry(app, textvariable=search_var)
+search_entry.grid(row=3, column=1, padx=5, pady=5)
+
+search_button = Button(app, text="Search", width=12, command=lambda: search_item())
+search_button.grid(row=3, column=2, padx=5, pady=5)
 
 
 # ===== Contact Info Treeview with Headers ===== #
-# Treeview (table) to display contact info
-columns = ("Full Name", "Age", "Contact Number", "Address")
+columns = ("First Name", "Last Name", "Age", "Phone", "Address")
 
 tree = ttk.Treeview(app, columns=columns, show="headings", height=10)
-tree.grid(row=3, column=0, columnspan=4, rowspan=6, pady=20, padx=20)
+tree.grid(row=4, column=0, columnspan=4, rowspan=6, pady=20, padx=20)
 
 # Column headers
-tree.heading("Full Name", text="Full Name", anchor=W)
+tree.heading("First Name", text="First Name", anchor=W)
+tree.heading("Last Name", text="Last Name", anchor=W)
 tree.heading("Age", text="Age", anchor=W)
-tree.heading("Contact Number", text="Contact Number", anchor=W)
+tree.heading("Phone", text="Phone", anchor=W)
 tree.heading("Address", text="Address", anchor=W)
 
-# Set column widths (optional, you can adjust as needed)
-tree.column("Full Name", width=180)
+# Set column widths
+tree.column("First Name", width=150)
+tree.column("Last Name", width=150)
 tree.column("Age", width=60)
-tree.column("Contact Number", width=180)
+tree.column("Phone", width=150)
 tree.column("Address", width=250)
 
 
 # Scrollbar for Treeview
 scrollbar = Scrollbar(app, orient=VERTICAL, command=tree.yview)
-scrollbar.grid(row=3, column=4, rowspan=6, sticky='ns')
+scrollbar.grid(row=4, column=4, rowspan=6, sticky='ns', pady=20)
 tree.configure(yscrollcommand=scrollbar.set)
 
 
 # ===== Functionality ===== #
 
 def populate_treeview():
-    # Clear current entries in treeview
+    """Populate the Treeview with contacts from the database."""
     for row in tree.get_children():
         tree.delete(row)
 
@@ -123,92 +146,139 @@ def populate_treeview():
     for row in rows:
         tree.insert("", "end", values=row)
 
+
 def add_item():
-    run_query(
-        "INSERT INTO contacts (full_name, age, contact_number, address) VALUES (%s, %s, %s, %s)",
-        (contact_name.get(), contact_age.get(), contact_number.get(), contact_address.get()),
-        fetch=False
-    )
-    populate_treeview()
-    clear_text()
+    """Add a new contact to the database."""
+    if not validate_inputs():
+        return
+    
+    try:
+        run_query(
+            "INSERT INTO contacts (first_name, last_name, age, phone, address) VALUES (%s, %s, %s, %s, %s)",
+            (first_name.get(), last_name.get(), age.get(), phone.get(), address.get()),
+            fetch=False
+        )
+        populate_treeview()
+        clear_text()
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to add contact: {e}")
+
 
 def delete_item():
+    """Delete the selected contact from the database."""
     selected_item = tree.selection()
     if selected_item:
-        selected_contact = tree.item(selected_item)["values"][0]
-        run_query("DELETE FROM contacts WHERE full_name = %s", (selected_contact,), fetch=False)
+        selected_contact = tree.item(selected_item)["values"][3]  # Phone number is unique
+        run_query("DELETE FROM contacts WHERE phone = %s", (selected_contact,), fetch=False)
         populate_treeview()
         clear_text()
 
+
 def update_item():
+    """Update the selected contact's details in the database."""
     selected_item = tree.selection()
     if selected_item:
-        selected_contact = tree.item(selected_item)["values"][0]
+        selected_contact = tree.item(selected_item)["values"][3]  # Phone number is unique
+        
+        # Prepare the data to update
+        first_name_val = first_name.get() if first_name.get() else tree.item(selected_item)["values"][0]
+        last_name_val = last_name.get() if last_name.get() else tree.item(selected_item)["values"][1]
+        age_val = age.get() if age.get() else tree.item(selected_item)["values"][2]
+        address_val = address.get() if address.get() else tree.item(selected_item)["values"][4]
+        
         run_query(""" 
-            UPDATE contacts SET age = %s, contact_number = %s, address = %s WHERE full_name = %s
+            UPDATE contacts SET first_name = %s, last_name = %s, age = %s, address = %s WHERE phone = %s
         """, (
-            contact_age.get(),
-            contact_number.get(),
-            contact_address.get(),
+            first_name_val,
+            last_name_val,
+            age_val,
+            address_val,
             selected_contact
         ), fetch=False)
         populate_treeview()
 
 
 def clear_text():
-    contact_name.set("")
-    contact_age.set("")
-    contact_number.set("")
-    contact_address.set("")
+    """Clear all input fields."""
+    first_name.set("")
+    last_name.set("")
+    age.set("")
+    phone.set("")
+    address.set("")
+
+
+def validate_inputs():
+    """Validate the inputs to ensure no spaces and all fields are filled."""
+    if not all([first_name.get(), last_name.get(), age.get(), phone.get(), address.get()]):
+        messagebox.showerror("Input Error", "All fields are required.")
+        return False
+
+    if ' ' in first_name.get() or ' ' in last_name.get() or ' ' in phone.get():
+        messagebox.showerror("Input Error", "First Name, Last Name, and Phone should not contain spaces.")
+        return False
+
+    if not phone.get().isdigit():
+        messagebox.showerror("Input Error", "Phone should only contain numbers.")
+        return False
+
+    return True
+
+
+def search_item():
+    """Search for contacts by first name."""
+    search_term = search_var.get()
+    if not search_term:
+        messagebox.showerror("Search Error", "Please enter a search term.")
+        return
+
+    for row in tree.get_children():
+        tree.delete(row)
+
+    rows = run_query("SELECT * FROM contacts WHERE first_name LIKE %s", ('%' + search_term + '%',))
+    for row in rows:
+        tree.insert("", "end", values=row)
+
 
 # ===== Double Click Event Handler ===== #
 
 def on_item_double_click(event):
-    # Get selected item from treeview
+    """Populate the input fields with the selected contact's data on double-click."""
     selected_item = tree.selection()
     if selected_item:
-        # Get values of the selected row
         values = tree.item(selected_item)["values"]
-        
-        # Populate the input fields with the selected row data
-        contact_name.set(values[0])  # Full Name
-        contact_age.set(values[1])  # Age
-        contact_number.set(values[2])  # Contact Number
-        contact_address.set(values[3])  # Address
-
-
-# Bind double-click event to the Treeview
-tree.bind("<Double-1>", on_item_double_click)
+        first_name.set(values[0])  # First Name
+        last_name.set(values[1])   # Last Name
+        age.set(values[2])         # Age
+        phone.set(values[3])       # Phone
+        address.set(values[4])     # Address
 
 
 # ===== Buttons ===== #
 
 create_contact = Button(app, text="Create Contact", width=12, command=add_item)
-create_contact.grid(row=2, column=0, pady=20)
+create_contact.grid(row=10, column=0, padx=5, pady=10)
 
 delete_contact = Button(app, text="Delete Contact", width=12, command=delete_item)
-delete_contact.grid(row=2, column=1)
+delete_contact.grid(row=10, column=1, padx=5, pady=10)
 
 update_contact = Button(app, text="Update Contact", width=12, command=update_item)
-update_contact.grid(row=2, column=2)
+update_contact.grid(row=10, column=2, padx=5, pady=10)
 
 clear_input = Button(app, text="Clear Input Text", width=12, command=clear_text)
-clear_input.grid(row=2, column=3)
+clear_input.grid(row=10, column=3, padx=5, pady=10)
 
 
 # ===== App Setup and Start ===== #
 
-# Window dimensions (adjusted for more space)
-app.geometry("800x475")
+# Window dimensions
+app.geometry("900x550")
 
 # Initialize DB and populate treeview
 init_db()
 populate_treeview()
 
+# Bind double-click event to the Treeview
+tree.bind("<Double-1>", on_item_double_click)
+
 # Start the GUI app
 app.mainloop()
-
-# 1. Add exception handling
-# 2. Write and test Unit tests
-# 3. Write ReadMe without executable
-# 4. If not doing executable, remove files we don't need
