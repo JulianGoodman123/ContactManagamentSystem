@@ -253,6 +253,11 @@ def search_item():
         tree.insert("", "end", values=row)
 
 
+def refresh_table():
+    """Refresh the treeview after a search or modification."""
+    populate_treeview()
+
+
 # ===== Double Click Event Handler ===== #
 
 def on_item_double_click(event):
@@ -280,6 +285,9 @@ update_contact.grid(row=10, column=2, padx=5, pady=10)
 
 clear_input = Button(app, text="Clear Input Text", width=12, command=clear_text)
 clear_input.grid(row=10, column=3, padx=5, pady=10)
+
+refresh_button = Button(app, text="Refresh Table", width=12, command=refresh_table)
+refresh_button.grid(row=11, column=0, columnspan=4, padx=5, pady=10)
 
 
 # ===== App Setup and Start ===== #
