@@ -18,7 +18,7 @@ def init_db():
         cur = db.cursor()
         cur.execute("CREATE DATABASE IF NOT EXISTS contactDB")
         db.database = "contactDB"
-        cur.execute("""
+        cur.execute(""" 
             CREATE TABLE IF NOT EXISTS contacts (
                 first_name VARCHAR(255),
                 last_name VARCHAR(255),
@@ -79,7 +79,7 @@ last_name_entry = Entry(app, textvariable=last_name)
 last_name_entry.grid(row=0, column=3, padx=5, pady=5)
 
 # ----- Contact Age ----- #
-age = StringVar()
+age = IntVar()
 Label(app, text="Age: ", font=('bold', 14), pady=5, padx=10).grid(row=1, column=0, sticky=W)
 age_entry = Entry(app, textvariable=age)
 age_entry.grid(row=1, column=1, padx=5, pady=5)
@@ -125,8 +125,8 @@ tree.heading("Address", text="Address", anchor=W)
 tree.column("First Name", width=150)
 tree.column("Last Name", width=150)
 tree.column("Age", width=60)
-tree.column("Phone", width=150)
-tree.column("Address", width=250)
+tree.column("Phone", width=200)
+tree.column("Address", width=300)
 
 
 # Scrollbar for Treeview
@@ -143,6 +143,9 @@ def populate_treeview():
         tree.delete(row)
 
     rows = run_query("SELECT * FROM contacts")
+    if not rows:
+        messagebox.showinfo("No Contacts", "No contacts found in the database.")
+    
     for row in rows:
         tree.insert("", "end", values=row)
 
@@ -221,6 +224,14 @@ def validate_inputs():
         messagebox.showerror("Input Error", "Phone should only contain numbers.")
         return False
 
+    if len(phone.get()) < 10:  # Phone number length validation
+        messagebox.showerror("Input Error", "Phone number should be at least 10 digits.")
+        return False
+
+    if not str(age.get()).isdigit():
+        messagebox.showerror("Input Error", "Age should be a valid number.")
+        return False
+
     return True
 
 
@@ -235,6 +246,9 @@ def search_item():
         tree.delete(row)
 
     rows = run_query("SELECT * FROM contacts WHERE first_name LIKE %s", ('%' + search_term + '%',))
+    if not rows:
+        messagebox.showinfo("Search Results", "No contacts found with that name.")
+    
     for row in rows:
         tree.insert("", "end", values=row)
 
